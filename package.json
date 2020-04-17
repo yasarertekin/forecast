@@ -1,0 +1,21 @@
+{
+  "name": "forecast",
+  "version": "1.0.0",
+  "description": "Weather forecast project",
+  "main": "index.js",
+  "scripts": {
+    "create-stack": "export $(cat config.env | xargs) && ./bin/create.sh",
+    "delete-stack": "export $(cat config.env | xargs) && ./bin/delete.sh",
+    "update-stack": "export $(cat config.env | xargs) && ./bin/update.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yasarertekin/forecast.git"
+  },
+  "author": "Yasar Ertekin",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yasarertekin/forecast/issues"
+  },
+  "homepage": "https://github.com/yasarertekin/forecast#readme"
+}
