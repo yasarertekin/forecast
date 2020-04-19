@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Description: AWS API Gateway with a Lambda Integration
 Parameters:
-  apiGatewayStageName:
+  StageName:
     Type: "String"
     AllowedPattern: "^[a-z0-9]+$"
     Default: 'v0'
@@ -21,6 +21,13 @@ Parameters:
     Description: "S3BucketName"
     Type: "String"
 
+  MongoDBURI:
+    Description: "URI MongoDB Atlas"
+    Type: "String"
+  WeatherForeCastURL:
+    Description: "URL Weather Forecast Site"
+    Type: "String"
+
 Resources:
 
   ApiGatewayRestApi:
@@ -31,21 +38,28 @@ Resources:
       EndpointConfiguration:
         Types:
           - EDGE
-      Name: lambda-api
+      Name: ForecastRestApi
 
-  ApiGatewayResource:
+  AverageTempResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       ParentId: !GetAtt ApiGatewayRestApi.RootResourceId
-      PathPart: 'lambda'
+      PathPart: 'avgtempinsfax'
       RestApiId: !Ref ApiGatewayRestApi
 
-  ApiGatewayMethod:
+  CurrentTempResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt ApiGatewayRestApi.RootResourceId
+      PathPart: 'currenttempincovilha'
+      RestApiId: !Ref ApiGatewayRestApi
+
+  AverageTempMethod:
     Type: AWS::ApiGateway::Method
     Properties:
       ApiKeyRequired: false
       AuthorizationType: NONE
-      HttpMethod: POST
+      HttpMethod: GET
       Integration:
         ConnectionType: INTERNET
         Credentials: !GetAtt ApiGatewayIamRole.Arn
@@ -53,9 +67,27 @@ Resources:
         PassthroughBehavior: WHEN_NO_MATCH
         TimeoutInMillis: 29000
         Type: AWS_PROXY
-        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations'
-      OperationName: 'lambda'
-      ResourceId: !Ref ApiGatewayResource
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AverageTempFunction.Arn}/invocations'
+      OperationName: 'avgtempinsfax'
+      ResourceId: !Ref AverageTempResource
+      RestApiId: !Ref ApiGatewayRestApi
+
+  CurrentTempMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        ConnectionType: INTERNET
+        Credentials: !GetAtt ApiGatewayIamRole.Arn
+        IntegrationHttpMethod: POST
+        PassthroughBehavior: WHEN_NO_MATCH
+        TimeoutInMillis: 29000
+        Type: AWS_PROXY
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CurrentTempFunction.Arn}/invocations'
+      OperationName: 'currenttempincovilha'
+      ResourceId: !Ref CurrentTempResource
       RestApiId: !Ref ApiGatewayRestApi
 
   ApiGatewayModel:
@@ -71,11 +103,11 @@ Resources:
       DeploymentId: !Ref ApiGatewayDeployment
       Description: Lambda API Stage v0
       RestApiId: !Ref ApiGatewayRestApi
-      StageName: 'v0'
+      StageName: !Ref StageName
 
   ApiGatewayDeployment:
     Type: AWS::ApiGateway::Deployment
-    DependsOn: ApiGatewayMethod
+    DependsOn: [AverageTempMethod, CurrentTempMethod]
     Properties:
       Description: Lambda API Deployment
       RestApiId: !Ref ApiGatewayRestApi
@@ -101,13 +133,16 @@ Resources:
             Statement:
               - Effect: 'Allow'
                 Action: 'lambda:*'
-                Resource: !GetAtt LambdaFunction.Arn
+                Resource: !GetAtt AverageTempFunction.Arn
+              - Effect: 'Allow'
+                Action: 'lambda:*'
+                Resource: !GetAtt CurrentTempFunction.Arn
 
-  LambdaFunction:
+  AverageTempFunction:
     Type: AWS::Lambda::Function
     Properties:
       Description: AWS Lambda function
-      FunctionName: 'AverageTemp'
+      FunctionName: 'AverageTemp-function'
       Code:
         S3Bucket: !Ref S3BucketName
         S3Key: !Sub AverageTempFunction-${AverageTempFunctionVersion}.zip
@@ -115,6 +150,25 @@ Resources:
       MemorySize: 256
       Role: !GetAtt LambdaIamRole.Arn
       Runtime: nodejs10.x
+      Timeout: 60
+
+  CurrentTempFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS Lambda function
+      FunctionName: 'CurrentTemp-function'
+      Code:
+        S3Bucket: !Ref S3BucketName
+        S3Key: !Sub CurrentTempFunction-${CurrentTempFunctionVersion}.zip
+      Handler: function/currenttemp/index.handler
+      MemorySize: 1024
+      Role: !GetAtt LambdaIamRole.Arn
+      Runtime: nodejs10.x
+      Timeout: 300
+      Environment:
+        Variables:
+          URI_MONGO_DB: !Ref MongoDBURI
+          URL_WEATHER_FORECAST : !Ref WeatherForeCastURL
 
 
   LambdaIamRole:
