@@ -36,4 +36,4 @@ In the project directory, you can run:
 ### GET currentTempInCovilha
 
 #### Returns the current temperature (celsius) in Covilha, Portugal and the respective timestamp of the reading. 
-#### Saves the reading on mongodb Atlda.
+#### Saves the reading on mongodb Atlas.
